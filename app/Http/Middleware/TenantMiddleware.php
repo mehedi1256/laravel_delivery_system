@@ -19,10 +19,9 @@ class TenantMiddleware
             return response()->json(['error' => 'Tenant ID is missing from headers.'], 400);
         }
 
-        // 5.2: Efficient under high traffic (Cached lookup instead of Snippet B's DB call on every request)
-        $tenant = Cache::remember('tenant_'.$tenantId, 3600, function () use ($tenantId) {
-            return Tenant::find($tenantId);
-        });
+        // We are temporarily bypassing the cache because your local PHP server 
+        // has corrupted memory of the Tenant object.
+        $tenant = Tenant::find($tenantId);
 
         if (!$tenant) {
             return response()->json(['error' => 'Invalid Tenant ID.'], 404);

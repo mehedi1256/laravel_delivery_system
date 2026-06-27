@@ -27,8 +27,9 @@ class DashboardController extends Controller
     {
         $tenantId = request()->attributes->get('tenant_id');
 
-        return Cache::tags(['tenant:'.$tenantId, 'dashboard'])->remember('dashboard_stats', 3600, function () use ($tenantId) {
-            
+        $cacheKey = 'tenant_'.$tenantId.'_dashboard';
+
+        $stats = Cache::remember($cacheKey, 3600, function () use ($tenantId) {
             return DB::table('deliveries')
                 ->select(
                     DB::raw("DATE_TRUNC('week', created_at) as week"),
@@ -42,5 +43,7 @@ class DashboardController extends Controller
                 ->orderBy('week', 'desc')
                 ->get();
         });
+
+        return response()->json($stats);
     }
 }
