@@ -61,20 +61,46 @@ class DeliveryController extends Controller
         required: true,
         schema: new OA\Schema(type: "integer")
     )]
+    #[OA\RequestBody(
+        required: true,
+        content: new OA\MediaType(
+            mediaType: "multipart/form-data",
+            schema: new OA\Schema(
+                properties: [
+                    new OA\Property(property: "file", type: "string", format: "binary", description: "CSV file")
+                ]
+            )
+        )
+    )]
     #[OA\Response(response: 202, description: "Batch import started")]
     public function import(Request $request)
     {
-        $rows = [
-            ['user_id' => 1, 'pickup_address' => 'A', 'delivery_address' => 'B'],
-            ['user_id' => null, 'pickup_address' => 'C', 'delivery_address' => 'D'],
-            ['user_id' => 2, 'pickup_address' => 'E', 'delivery_address' => 'F'],
-        ];
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt|max:10240'
+        ]);
+
+        $path = $request->file('file')->getRealPath();
+        $file = fopen($path, 'r');
+        
+        // Ensure CSV has header
+        $header = fgetcsv($file);
+        if (!$header) {
+            return response()->json(['error' => 'Invalid CSV format'], 400);
+        }
 
         $tenantId = $request->attributes->get('tenant_id');
         $jobs = [];
 
-        foreach ($rows as $row) {
-            $jobs[] = new ProcessCsvRowJob($row, $tenantId);
+        while (($row = fgetcsv($file)) !== false) {
+            if (count($header) === count($row)) {
+                $data = array_combine($header, $row);
+                $jobs[] = new ProcessCsvRowJob($data, $tenantId);
+            }
+        }
+        fclose($file);
+
+        if (empty($jobs)) {
+            return response()->json(['error' => 'No valid rows found to import'], 400);
         }
 
         $batch = Bus::batch($jobs)->allowFailures()->dispatch();
