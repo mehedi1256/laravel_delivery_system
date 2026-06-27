@@ -32,8 +32,13 @@ class NotificationController extends Controller
     #[OA\Response(response: 200, description: "Success")]
     public function markAsRead(Request $request, $id)
     {
+        // Catch invalid UUID formats before they hit the database
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+            return response()->json(['error' => 'Invalid notification ID format. Must be a valid UUID.'], 400);
+        }
+
         $notification = $request->user()->notifications()->findOrFail($id);
         $notification->markAsRead();
-        return response()->json(['message' => 'Notification marked as read.']);
+        return response()->json(['message' => 'Notification marked as read']);
     }
 }
