@@ -41,7 +41,8 @@ class DashboardController extends Controller
                 ->where('created_at', '>=', now()->subMonths(3))
                 ->groupBy('week')
                 ->orderBy('week', 'desc')
-                ->get();
+                ->get()
+                ->toArray();
         });
 
         return response()->json($stats);
